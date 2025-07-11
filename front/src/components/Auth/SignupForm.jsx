@@ -1,126 +1,111 @@
+// src/components/Auth/SignupForm.jsx
 import React, { useState } from 'react';
-import { 
-  TextField, 
-  Button, 
-  Typography, 
-  Box, 
+import { useNavigate } from 'react-router-dom';
+import {
+  TextField,
+  Button,
+  Typography,
+  Box,
   Grid,
   InputAdornment,
   IconButton,
-  LinearProgress
+  FormControlLabel,
+  Checkbox,
+  Snackbar,
 } from '@mui/material';
-import { 
-  Lock as LockIcon,
+import {
   Person as PersonIcon,
+  Lock as LockIcon,
   Visibility,
   VisibilityOff
 } from '@mui/icons-material';
-import axiosInstance from '../../api/axiosInstance';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  registerUser,
+  clearError,
+  logout
+} from '../../Redux/authSlice';
+
 
 const SignupForm = ({ onSwitchToLogin }) => {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { status, error } = useSelector(state => state.auth);
+
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
     showPassword: false,
+    remember: false
   });
-  const [message, setMessage] = useState('');
-  const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-    
-    if (errors[name]) {
-      setErrors({ ...errors, [name]: '' });
-    }
-    
-    if (name === 'password') {
-      let strength = 0;
-      if (value.length >= 8) strength += 1;
-      if (/[A-Z]/.test(value)) strength += 1;
-      if (/[0-9]/.test(value)) strength += 1;
-      if (/[^A-Za-z0-9]/.test(value)) strength += 1;
-      setPasswordStrength(strength);
+  const handleChange = e => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
   const handleTogglePassword = () => {
-    setFormData({ ...formData, showPassword: !formData.showPassword });
+    setFormData(prev => ({ ...prev, showPassword: !prev.showPassword }));
   };
 
   const validate = () => {
-    const newErrors = {};
-    if (!formData.username.trim()) newErrors.username = 'Username is required';
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
-    }
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    }
-    return newErrors;
+    const errs = {};
+    if (!formData.username) errs.username = 'Username is required';
+    if (!formData.email) errs.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(formData.email))
+      errs.email = 'Invalid email format';
+    if (!formData.password) errs.password = 'Password is required';
+    else if (formData.password.length < 6)
+      errs.password = 'Password must be at least 6 characters';
+    return errs;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
-    setMessage('');
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    const errs = validate();
+    if (Object.keys(errs).length) {
+      setValidationErrors(errs);
       return;
     }
-    
-    setIsSubmitting(true);
+
     try {
-      await axiosInstance.post('/users/register', {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password
-      });
-      setMessage('Signup successful! Please log in.');
-      setFormData({ username: '', email: '', password: '' });
-    } catch (error) {
-      setMessage(error.response?.data?.message || 'Signup failed. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      // Wait for registerUser to succeed or throw
+      await dispatch(
+        registerUser({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          rememberMe: formData.remember
+        })
+      ).unwrap();
+
+      // On success, show snackbar, clear auth, then switch tab
+      setSnackbarOpen(true);
+      dispatch(logout());
+      setTimeout(() => {
+        setSnackbarOpen(false);
+        dispatch(clearError());
+         navigate('/login');
+      }, 2000);
+    } catch {
+      // registerUser rejected: error state is set in slice
     }
   };
-
-  const strengthColors = {
-    0: 'error',
-    1: 'error',
-    2: 'warning',
-    3: 'info',
-    4: 'success'
-  };
-  
-  const strengthText = [
-    'Very Weak',
-    'Weak',
-    'Medium',
-    'Strong',
-    'Very Strong'
-  ];
 
   return (
     <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
-      <Typography 
-        variant="h5" 
-        component="h2" 
-        align="center" 
-        gutterBottom 
-        color="primary"
-        sx={{ mb: 3 }}
-      >
-        Create Your Account
+      <Typography variant="h5" align="center" color="primary" gutterBottom>
+        Create Account
       </Typography>
-      
       <Grid container spacing={2}>
         <Grid item xs={12}>
           <TextField
@@ -129,20 +114,17 @@ const SignupForm = ({ onSwitchToLogin }) => {
             name="username"
             value={formData.username}
             onChange={handleChange}
-            error={!!errors.username}
-            helperText={errors.username}
-            variant="outlined"
-            size="medium"
+            error={!!validationErrors.username}
+            helperText={validationErrors.username}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <PersonIcon color="action" />
+                  <PersonIcon />
                 </InputAdornment>
               )
             }}
           />
         </Grid>
-        
         <Grid item xs={12}>
           <TextField
             fullWidth
@@ -151,13 +133,10 @@ const SignupForm = ({ onSwitchToLogin }) => {
             type="email"
             value={formData.email}
             onChange={handleChange}
-            error={!!errors.email}
-            helperText={errors.email}
-            variant="outlined"
-            size="medium"
+            error={!!validationErrors.email}
+            helperText={validationErrors.email}
           />
         </Grid>
-        
         <Grid item xs={12}>
           <TextField
             fullWidth
@@ -166,10 +145,8 @@ const SignupForm = ({ onSwitchToLogin }) => {
             type={formData.showPassword ? 'text' : 'password'}
             value={formData.password}
             onChange={handleChange}
-            error={!!errors.password}
-            helperText={errors.password}
-            variant="outlined"
-            size="medium"
+            error={!!validationErrors.password}
+            helperText={validationErrors.password}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -180,69 +157,33 @@ const SignupForm = ({ onSwitchToLogin }) => {
               )
             }}
           />
-          
-          {formData.password && (
-            <Box sx={{ mt: 1 }}>
-              <LinearProgress 
-                variant="determinate" 
-                value={(passwordStrength + 1) * 25} 
-                color={strengthColors[passwordStrength] || 'primary'} 
-                sx={{ height: 8, borderRadius: 4 }}
-              />
-              <Typography variant="caption" color="text.secondary">
-                Strength: <Typography 
-                  component="span" 
-                  color={`${strengthColors[passwordStrength]}.main`} 
-                  fontWeight="bold"
-                >
-                  {strengthText[passwordStrength]}
-                </Typography>
-              </Typography>
-            </Box>
-          )}
         </Grid>
-        
+  
         <Grid item xs={12}>
           <Button
             fullWidth
             variant="contained"
             color="primary"
-            size="large"
             type="submit"
-            disabled={isSubmitting}
+            disabled={status === 'loading'}
             startIcon={<LockIcon />}
-            sx={{ py: 1.5, mt: 1 }}
           >
-            {isSubmitting ? 'Creating Account...' : 'Sign Up'}
+            {status === 'loading' ? 'Signing Up...' : 'Sign Up'}
           </Button>
         </Grid>
-        
-        <Grid item xs={12} sx={{ mt: 1 }}>
-          <Typography variant="body2" align="center">
-            Already have an account?{' '}
-            <Button 
-              color="secondary" 
-              onClick={onSwitchToLogin}
-              sx={{ textTransform: 'none', fontWeight: 'bold' }}
-            >
-              Sign in
-            </Button>
-          </Typography>
-        </Grid>
-        
-        {message && (
+        {error && (
           <Grid item xs={12}>
-            <Typography 
-              variant="body2" 
-              align="center" 
-              color={message.includes('successful') ? 'success.main' : 'error.main'}
-              sx={{ mt: 1 }}
-            >
-              {message}
+            <Typography variant="body2" color="error" align="center">
+              {error}
             </Typography>
           </Grid>
         )}
       </Grid>
+      <Snackbar
+        open={snackbarOpen}
+        message="Signup complete! Please sign in."
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      />
     </Box>
   );
 };

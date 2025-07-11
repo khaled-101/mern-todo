@@ -2,7 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import { store } from './Redux/store';
+import axios from './api/axiosInstance'
 
+const token = store.getState().auth.token
+if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
