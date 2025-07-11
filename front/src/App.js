@@ -7,7 +7,7 @@ import { restoreSession } from './Redux/authSlice';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import TodoListPage from './pages/TodoListPage';
-import EditTaskPage from './pages/TodoListPage';
+import EditTaskPage from './pages/EditTaskPage';
 import { Box, Typography, Button } from '@mui/material';
 
 // 404 Not Found component

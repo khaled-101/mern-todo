@@ -1,61 +1,61 @@
-// src/pages/SignupPage.jsx
-import React, { useState } from 'react';
+// src/pages/EditTaskPage.jsx
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Paper,
   Box,
-  Avatar,
   Typography,
   TextField,
   Button,
-  Link,
+  Grid,
+  MenuItem,
+  Avatar,
   useTheme
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchTasks, updateTask } from '../Redux/taskSlice';
 import ChecklistIcon from '@mui/icons-material/Checklist';
 import { keyframes } from '@emotion/react';
-import { useDispatch } from 'react-redux';
-import { registerUser } from '../Redux/authSlice';
 
 // Floating animation
 const float = keyframes`
   0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-5px); }
   100% { transform: translateY(0px); }
 `;
 
-const SignupPage = () => {
+export default function EditTaskPage() {
   const theme = useTheme();
-  const navigate = useNavigate();
+  const { id } = useParams();
   const dispatch = useDispatch();
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
-  });
+  const navigate = useNavigate();
+  const tasks = useSelector(state => state.tasks.items || []);
+  const existingTask = tasks.find(t => t._id === id);
 
-  const handleChange = (e) => {
+  const [form, setForm] = useState({ name: '', desc: '', type: 'notstarted' });
+
+  useEffect(() => {
+    if (!existingTask) {
+      dispatch(fetchTasks());
+    } else {
+      setForm({ name: existingTask.name, desc: existingTask.desc, type: existingTask.type });
+    }
+  }, [existingTask, dispatch]);
+
+  const handleChange = e => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setForm(f => ({ ...f, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (formData.password === formData.confirmPassword) {
-      dispatch(registerUser({
-        username: formData.username,
-        email: formData.email,
-        password: formData.password
-      }));
-    } else {
-      // Handle password mismatch error
-      console.error("Passwords don't match");
-    }
+  const handleCancel = () => navigate('/tasks');
+  const handleSave = () => {
+    dispatch(updateTask({ id, ...form }));
+    navigate('/tasks');
   };
 
   return (
-    <Container maxWidth="sm" sx={{
+    <Container maxWidth="sm" sx={{ 
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
@@ -69,7 +69,7 @@ const SignupPage = () => {
           overflow: 'hidden',
           transform: 'scale(1.02)',
           transition: 'all 0.3s ease-in-out',
-          boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 15px ${theme.palette.secondary.light}`,
+          boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 15px ${theme.palette.primary.light}`,
           position: 'relative',
           '&:before': {
             content: '""',
@@ -78,9 +78,7 @@ const SignupPage = () => {
             left: 0,
             right: 0,
             height: 4,
-            background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-            opacity: 1,
-            zIndex: 2,
+            background: `linear-gradient(90deg, ${theme.palette.secondary.main}, ${theme.palette.primary.main})`,
           }
         }}
       >
@@ -114,7 +112,7 @@ const SignupPage = () => {
             boxShadow: '0 5px 15px rgba(0,0,0,0.2)',
             transition: 'all 0.3s ease',
             '&:hover': {
-              transform: 'rotate(-15deg) scale(1.1)',
+              transform: 'rotate(15deg) scale(1.1)',
               boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
             }
           }}>
@@ -127,7 +125,7 @@ const SignupPage = () => {
             zIndex: 1,
             position: 'relative'
           }}>
-            TaskMaster Pro
+            Edit Task
           </Typography>
           <Typography variant="subtitle1" sx={{ 
             opacity: 0.9,
@@ -135,7 +133,7 @@ const SignupPage = () => {
             zIndex: 1,
             position: 'relative'
           }}>
-            Create your account
+            Update your task details
           </Typography>
         </Box>
 
@@ -145,16 +143,15 @@ const SignupPage = () => {
           background: 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(5px)',
         }}>
-          <form onSubmit={handleSubmit}>
-            {/* Username Field - Full Width */}
+          <Box component="form" noValidate autoComplete="off">
+            {/* Task Name - Full Width */}
             <Box sx={{ mb: 3 }}>
               <TextField
                 fullWidth
-                label="Username"
-                name="username"
-                value={formData.username}
+                label="Task Name"
+                name="name"
+                value={form.name}
                 onChange={handleChange}
-                required
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
@@ -173,16 +170,16 @@ const SignupPage = () => {
               />
             </Box>
             
-            {/* Email Field - Full Width */}
+            {/* Description - Full Width */}
             <Box sx={{ mb: 3 }}>
               <TextField
                 fullWidth
-                label="Email"
-                name="email"
-                type="email"
-                value={formData.email}
+                label="Description"
+                name="desc"
+                multiline
+                rows={4}
+                value={form.desc}
                 onChange={handleChange}
-                required
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
@@ -201,16 +198,15 @@ const SignupPage = () => {
               />
             </Box>
             
-            {/* Password Field - Full Width */}
-            <Box sx={{ mb: 3 }}>
+            {/* Status Selector */}
+            <Box sx={{ mb: 4 }}>
               <TextField
+                select
                 fullWidth
-                label="Password"
-                name="password"
-                type="password"
-                value={formData.password}
+                label="Status"
+                name="type"
+                value={form.type}
                 onChange={handleChange}
-                required
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
@@ -225,61 +221,19 @@ const SignupPage = () => {
                       borderWidth: 2,
                     },
                   },
-                }}
-              />
-            </Box>
-            
-            {/* Confirm Password Field - Full Width */}
-            <Box sx={{ mb: 3 }}>
-              <TextField
-                fullWidth
-                label="Confirm Password"
-                name="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1,
-                    '& fieldset': {
-                      borderWidth: 2,
-                    },
-                    '&:hover fieldset': {
-                      borderColor: 'primary.main',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: 'primary.main',
-                      borderWidth: 2,
-                    },
-                  },
-                }}
-              />
-            </Box>
-            
-            {/* Buttons - Sign Up on left, Back to Login on right */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Button 
-                type="submit"
-                variant="contained"
-                sx={{
-                  width: '48%',
-                  fontWeight: 600,
-                  letterSpacing: 0.5,
-                  boxShadow: `0 4px 10px ${theme.palette.primary.light}`,
-                  py: 1.5,
-                  '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: `0 6px 14px ${theme.palette.primary.light}`,
-                  }
                 }}
               >
-                Sign Up
-              </Button>
-              
+                <MenuItem value="notstarted">Not Started</MenuItem>
+                <MenuItem value="ongoing">Ongoing</MenuItem>
+                <MenuItem value="done">Done</MenuItem>
+              </TextField>
+            </Box>
+            
+            {/* Buttons - Cancel on left, Save on right */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Button 
+                onClick={handleCancel}
                 variant="outlined"
-                onClick={() => navigate('/login')}
                 sx={{
                   width: '48%',
                   fontWeight: 600,
@@ -292,35 +246,29 @@ const SignupPage = () => {
                   }
                 }}
               >
-                Back to Login
+                Cancel
+              </Button>
+              <Button 
+                variant="contained"
+                onClick={handleSave}
+                sx={{
+                  width: '48%',
+                  fontWeight: 600,
+                  letterSpacing: 0.5,
+                  boxShadow: `0 4px 10px ${theme.palette.primary.light}`,
+                  py: 1.5,
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 6px 14px ${theme.palette.primary.light}`,
+                  }
+                }}
+              >
+                Save Changes
               </Button>
             </Box>
-            
-            {/* "Already have an account" text - Left aligned */}
-            <Box sx={{ mt: 3, textAlign: 'left' }}>
-              <Typography variant="body2">
-                Already have an account?{' '}
-                <Link 
-                  component="button" 
-                  type="button"
-                  onClick={() => navigate('/login')}
-                  sx={{ 
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                    '&:hover': {
-                      textDecoration: 'underline',
-                    }
-                  }}
-                >
-                  Login
-                </Link>
-              </Typography>
-            </Box>
-          </form>
+          </Box>
         </Box>
       </Paper>
     </Container>
   );
-};
-
-export default SignupPage;
+}
